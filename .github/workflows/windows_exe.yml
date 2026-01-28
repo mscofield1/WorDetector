@@ -1,0 +1,35 @@
+name: Build Windows EXE
+
+on:
+  push:
+    tags:
+      - 'v*' # Sadece v1.0, v1.1 gibi etiket (tag) attığında çalışır
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/set-up-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install deep-translator fpdf pymupdf python-docx gTTS pygame langdetect pyinstaller
+
+    - name: Build EXE with PyInstaller
+      run: |
+        pyinstaller --noconsole --onefile --name "WorDetector_Windows" WorDetector.py
+
+    - name: Release EXE
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/WorDetector_Windows.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
