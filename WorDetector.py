@@ -7,6 +7,7 @@ import sys
 import os
 import random
 import time
+import ctypes
 
 # Function for automatic library installation
 def install(package):
@@ -37,11 +38,23 @@ from gtts import gTTS
 import pygame
 from langdetect import detect 
 
+# --- WINDOWS DPI AWARENESS ---
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(1)
+except Exception:
+    pass
+
 class WorDetector:
     def __init__(self, root):
         self.root = root
         self.root.title("WorDetector - Vocabulary Marathon")
-        self.root.geometry("1250x900")
+        
+        # --- RESPONSIVE SIZING ---
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        app_width = min(1250, int(screen_width * 0.9))
+        app_height = min(900, int(screen_height * 0.9))
+        self.root.geometry(f"{app_width}x{app_height}")
         
         pygame.mixer.init()
         self.is_dark_mode = True 
@@ -55,50 +68,73 @@ class WorDetector:
 
         # Fonts
         self.header_font = tkfont.Font(family="Helvetica", size=14, weight="bold")
-        self.metin_font = tkfont.Font(family="Georgia", size=20)
-        self.liste_font = tkfont.Font(family="Verdana", size=16)
+        self.text_font = tkfont.Font(family="Georgia", size=18)
+        self.list_font = tkfont.Font(family="Verdana", size=14)
+
+        # --- GRID CONFIGURATION ---
+        self.root.grid_columnconfigure(0, weight=1) 
+        self.root.grid_columnconfigure(1, weight=0) 
+        self.root.grid_rowconfigure(0, weight=1)
 
         # --- LEFT PANEL ---
         self.left_frame = tk.Frame(root, bg=self.bg_main)
-        self.left_frame.pack(side="left", fill="both", expand=True, padx=(20, 10), pady=20)
+        self.left_frame.grid(row=0, column=0, sticky="nsew", padx=(20, 10), pady=20)
         
         self.top_panel = tk.Frame(self.left_frame, bg=self.bg_main)
         self.top_panel.pack(fill="x", pady=(0, 10))
 
-        self.btn_theme = tk.Button(self.top_panel, text="🌓 Theme", command=self.toggle_theme, bg="#000000", fg="#000000", relief="flat", padx=10)
+        self.btn_theme = tk.Button(self.top_panel, text="🌓 Theme", command=self.toggle_theme, bg="#000000", fg="#020202", relief="flat", padx=10)
         self.btn_theme.pack(side="left", padx=(0, 15))
 
         self.src_lang_box = ttk.Combobox(self.top_panel, values=list(self.languages.keys()), state="readonly", width=12)
         self.src_lang_box.set("English")
         self.src_lang_box.pack(side="left", padx=5)
 
-        self.hedef_dil_box = ttk.Combobox(self.top_panel, values=list(self.languages.keys()), state="readonly", width=12)
-        self.hedef_dil_box.set("Turkish")
-        self.hedef_dil_box.pack(side="left", padx=5)
+        self.dest_lang_box = ttk.Combobox(self.top_panel, values=list(self.languages.keys()), state="readonly", width=12)
+        self.dest_lang_box.set("Turkish")
+        self.dest_lang_box.pack(side="left", padx=5)
 
         self.color_preview = tk.Button(self.top_panel, text="Marker Color", command=self.choose_color, bg=self.current_highlight_color, width=12, relief="flat")
         self.color_preview.pack(side="left", padx=10)
 
         self.btn_open_file = tk.Button(self.left_frame, text="📁 OPEN FILE (PDF / WORD / TXT)", command=self.open_file,
-                                      bg="#000000", fg="#000000", font=("Arial", 11, "bold"), relief="flat", pady=10)
+                                     bg="#2c3e50", fg="#000000", font=("Arial", 11, "bold"), relief="flat", pady=10)
         self.btn_open_file.pack(fill="x", pady=(0, 10))
 
-        self.text_area = tk.Text(self.left_frame, wrap="word", font=self.metin_font, 
+        # Text Area with Scrollbar
+        self.text_container = tk.Frame(self.left_frame, bg=self.bg_main)
+        self.text_container.pack(fill="both", expand=True)
+        
+        self.text_area = tk.Text(self.text_container, wrap="word", font=self.text_font, 
                                  bg=self.bg_widgets, fg=self.fg_text, insertbackground="white", 
                                  padx=15, pady=15, relief="flat")
-        self.text_area.pack(fill="both", expand=True)
+        self.text_area.pack(side="left", fill="both", expand=True)
+        
+        self.text_scroll = ttk.Scrollbar(self.text_container, command=self.text_area.yview)
+        self.text_scroll.pack(side="right", fill="y")
+        self.text_area.configure(yscrollcommand=self.text_scroll.set)
+        
         self.text_area.bind("<<Modified>>", self.on_text_modified)
 
         # --- RIGHT PANEL ---
-        self.right_frame = tk.Frame(root, width=450, bg=self.bg_main)
-        self.right_frame.pack(side="right", fill="both", padx=(10, 20), pady=20)
-        self.right_frame.pack_propagate(False)
+        self.right_frame = tk.Frame(root, width=350, bg=self.bg_main)
+        self.right_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 20), pady=20)
+        self.right_frame.grid_propagate(False)
 
         tk.Label(self.right_frame, text="VOCABULARY LIST", font=self.header_font, bg=self.bg_main, fg="#ffffff").pack(pady=(0, 10))
 
-        self.word_listbox = tk.Listbox(self.right_frame, font=self.liste_font, 
+        # Listbox with Scrollbar
+        self.list_container = tk.Frame(self.right_frame, bg=self.bg_widgets)
+        self.list_container.pack(fill="both", expand=True)
+
+        self.word_listbox = tk.Listbox(self.list_container, font=self.list_font, 
                                        bg=self.bg_widgets, fg="#ffffff", borderwidth=0, highlightthickness=0)
-        self.word_listbox.pack(fill="both", expand=True)
+        self.word_listbox.pack(side="left", fill="both", expand=True)
+        
+        self.list_scroll = ttk.Scrollbar(self.list_container, command=self.word_listbox.yview)
+        self.list_scroll.pack(side="right", fill="y")
+        self.word_listbox.configure(yscrollcommand=self.list_scroll.set)
+
         self.word_listbox.bind("<Double-Button-1>", self.delete_selected_word)
         self.word_listbox.bind("<<ListboxSelect>>", self.play_word_sound)
 
@@ -106,9 +142,10 @@ class WorDetector:
         self.btn_frame = tk.Frame(self.right_frame, bg=self.bg_main)
         self.btn_frame.pack(fill="x", pady=(15, 0))
 
-        for text, cmd in [("QUIZ MODE 🧠", self.open_quiz), ("SAVE TXT", self.save_txt), ("SAVE PDF", self.save_pdf), ("CLEAR LIST", self.clear_list)]:
-            color = "#2980b9" if "QUIZ" in text else "#000000"
-            tk.Button(self.btn_frame, text=text, command=cmd, bg=color, fg="#000000", font=("Arial", 11, "bold"), relief="flat", pady=8).pack(fill="x", pady=2)
+        actions = [("QUIZ MODE 🧠", self.open_quiz), ("SAVE TXT", self.save_txt), ("SAVE PDF", self.save_pdf), ("CLEAR LIST", self.clear_list)]
+        for text, cmd in actions:
+            btn_color = "#2980b9" if "QUIZ" in text else "#34495e"
+            tk.Button(self.btn_frame, text=text, command=cmd, bg=btn_color, fg="#000000", font=("Arial", 11, "bold"), relief="flat", pady=8).pack(fill="x", pady=2)
 
         self.text_area.bind("<ButtonRelease-1>", self.on_word_select)
 
@@ -124,6 +161,9 @@ class WorDetector:
         self.root.configure(bg=self.bg_main)
         self.text_area.configure(bg=self.bg_widgets, fg=self.fg_text, insertbackground=self.insert_bg)
         self.word_listbox.configure(bg=self.bg_widgets, fg="#ffffff" if self.is_dark_mode else "#000000")
+        self.left_frame.configure(bg=self.bg_main)
+        self.right_frame.configure(bg=self.bg_main)
+        self.top_panel.configure(bg=self.bg_main)
 
     def on_word_select(self, event):
         try:
@@ -139,7 +179,7 @@ class WorDetector:
 
     def translate_word(self, word, tag_id):
         try:
-            src, dest = self.languages[self.src_lang_box.get()], self.languages[self.hedef_dil_box.get()]
+            src, dest = self.languages[self.src_lang_box.get()], self.languages[self.dest_lang_box.get()]
             ans = GoogleTranslator(source=src, target=dest).translate(word)
             pos = ""
             if src == "en":
@@ -243,12 +283,12 @@ class WorDetector:
             self.quiz_ui['stats_label'].config(text=f"Question: {total_q - len(remaining_questions)} / {total_q}")
 
             all_meanings = [i.split(":")[1].strip() for i in items]
-            all_meanings.remove(correct_ans)
-            options = random.sample(list(set(all_meanings)), 3) + [correct_ans]
+            if correct_ans in all_meanings: all_meanings.remove(correct_ans)
+            options = random.sample(list(set(all_meanings)), min(3, len(all_meanings))) + [correct_ans]
             random.shuffle(options)
 
             for opt in options:
-                # FG RENGI BURADA #000000 (SIYAH) OLARAK GÜNCELLENDİ
+                # --- FIX: Set foreground to "#000000" (Black) for quiz options ---
                 btn = tk.Button(self.quiz_ui['btn_frame'], text=opt, font=("Arial", 11), 
                                 bg="#34495e" if self.is_dark_mode else "#ecf0f1",
                                 fg="#000000", relief="flat", pady=10, cursor="hand2")
@@ -272,7 +312,7 @@ class WorDetector:
         if c: self.current_highlight_color = c; self.color_preview.config(bg=c)
 
     def clear_list(self):
-        if messagebox.askyesno("Confirm", "Clear?"):
+        if messagebox.askyesno("Confirm", "Clear everything?"):
             for tag in self.word_tag_map.values(): self.text_area.tag_remove(tag, "1.0", tk.END)
             self.word_listbox.delete(0, tk.END); self.word_tag_map.clear()
 
@@ -289,11 +329,12 @@ class WorDetector:
                 pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=12)
                 for i in self.word_listbox.get(0, tk.END):
                     clean = i.replace("➜", "-")
+                    # Handling Turkish characters for standard PDF fonts
                     cmap = {"ğ":"g","Ğ":"G","ı":"i","İ":"I","ö":"o","Ö":"O","ü":"u","Ü":"U","ş":"s","Ş":"S","ç":"c","Ç":"C"}
                     for k, v in cmap.items(): clean = clean.replace(k, v)
                     pdf.cell(200, 10, txt=clean.encode('latin-1', 'ignore').decode('latin-1'), ln=True)
                 pdf.output(p)
-                messagebox.showinfo("Success", "PDF saved.")
+                messagebox.showinfo("Success", "Vocabulary PDF has been saved.")
             except Exception as e: messagebox.showerror("Error", str(e))
 
 if __name__ == "__main__":
