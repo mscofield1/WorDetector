@@ -44,7 +44,7 @@ Run the file (No Python installation required for the EXE version).
 
 For Developers:
 # Clone the project
-git clone https://github.com/yourusername/WorDetector.git
+git clone https://github.com/mscofield1/WorDetector.git
 
 # Navigate to the folder
 cd WorDetector
