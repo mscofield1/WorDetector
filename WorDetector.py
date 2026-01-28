@@ -49,11 +49,22 @@ class WorDetector:
         self.root = root
         self.root.title("WorDetector - Vocabulary Marathon")
         
-        # --- RESPONSIVE SIZING ---
+        # --- RESPONSIVE SIZING & ADAPTIVE FONTS ---
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        app_width = min(1250, int(screen_width * 0.9))
-        app_height = min(900, int(screen_height * 0.9))
+        
+        # 1366x768 ve altı için font ve boyut ayarı
+        if screen_width <= 1366:
+            app_width = int(screen_width * 0.95)
+            app_height = int(screen_height * 0.85)
+            text_size = 16
+            list_size = 12
+        else:
+            app_width = 1250
+            app_height = 900
+            text_size = 18
+            list_size = 14
+            
         self.root.geometry(f"{app_width}x{app_height}")
         
         pygame.mixer.init()
@@ -68,12 +79,12 @@ class WorDetector:
 
         # Fonts
         self.header_font = tkfont.Font(family="Helvetica", size=14, weight="bold")
-        self.text_font = tkfont.Font(family="Georgia", size=18)
-        self.list_font = tkfont.Font(family="Verdana", size=14)
+        self.text_font = tkfont.Font(family="Georgia", size=text_size)
+        self.list_font = tkfont.Font(family="Verdana", size=list_size)
 
-        # --- GRID CONFIGURATION ---
-        self.root.grid_columnconfigure(0, weight=1) 
-        self.root.grid_columnconfigure(1, weight=0) 
+        # --- GRID CONFIGURATION (ÇOK KRİTİK: Sağ panelin taşmasını engeller) ---
+        self.root.grid_columnconfigure(0, weight=1) # Sol Panel: Kalan tüm alanı doldurur
+        self.root.grid_columnconfigure(1, weight=0, minsize=300) # Sağ Panel: Sabit ve görünür kalır
         self.root.grid_rowconfigure(0, weight=1)
 
         # --- LEFT PANEL ---
@@ -83,7 +94,7 @@ class WorDetector:
         self.top_panel = tk.Frame(self.left_frame, bg=self.bg_main)
         self.top_panel.pack(fill="x", pady=(0, 10))
 
-        self.btn_theme = tk.Button(self.top_panel, text="🌓 Theme", command=self.toggle_theme, bg="#000000", fg="#020202", relief="flat", padx=10)
+        self.btn_theme = tk.Button(self.top_panel, text="🌓 Theme", command=self.toggle_theme, bg="#000000", fg="#000000", relief="flat", padx=10)
         self.btn_theme.pack(side="left", padx=(0, 15))
 
         self.src_lang_box = ttk.Combobox(self.top_panel, values=list(self.languages.keys()), state="readonly", width=12)
@@ -101,7 +112,6 @@ class WorDetector:
                                      bg="#2c3e50", fg="#000000", font=("Arial", 11, "bold"), relief="flat", pady=10)
         self.btn_open_file.pack(fill="x", pady=(0, 10))
 
-        # Text Area with Scrollbar
         self.text_container = tk.Frame(self.left_frame, bg=self.bg_main)
         self.text_container.pack(fill="both", expand=True)
         
@@ -116,14 +126,13 @@ class WorDetector:
         
         self.text_area.bind("<<Modified>>", self.on_text_modified)
 
-        # --- RIGHT PANEL ---
-        self.right_frame = tk.Frame(root, width=350, bg=self.bg_main)
+        # --- RIGHT PANEL (Layout Fix applied here) ---
+        self.right_frame = tk.Frame(root, width=320, bg=self.bg_main) # Genişlik optimize edildi
         self.right_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 20), pady=20)
         self.right_frame.grid_propagate(False)
 
         tk.Label(self.right_frame, text="VOCABULARY LIST", font=self.header_font, bg=self.bg_main, fg="#ffffff").pack(pady=(0, 10))
 
-        # Listbox with Scrollbar
         self.list_container = tk.Frame(self.right_frame, bg=self.bg_widgets)
         self.list_container.pack(fill="both", expand=True)
 
@@ -288,7 +297,6 @@ class WorDetector:
             random.shuffle(options)
 
             for opt in options:
-                # --- FIX: Set foreground to "#000000" (Black) for quiz options ---
                 btn = tk.Button(self.quiz_ui['btn_frame'], text=opt, font=("Arial", 11), 
                                 bg="#34495e" if self.is_dark_mode else "#ecf0f1",
                                 fg="#000000", relief="flat", pady=10, cursor="hand2")
@@ -298,10 +306,10 @@ class WorDetector:
         def check_ans(clicked_btn, selected, correct, original_word):
             for b in self.quiz_ui['btn_frame'].winfo_children():
                 b.config(state="disabled")
-                if b['text'] == correct: b.config(bg="#27ae60", fg="#ffffff") 
+                if b['text'] == correct: b.config(bg="#27ae60", fg="#000000") 
             if selected == correct: score[0] += 1
             else:
-                clicked_btn.config(bg="#c0392b", fg="#ffffff") 
+                clicked_btn.config(bg="#c0392b", fg="#000000") 
                 errors.append(f"• {original_word} → {correct}")
             quiz_win.after(1200, next_question) 
 
@@ -329,7 +337,6 @@ class WorDetector:
                 pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=12)
                 for i in self.word_listbox.get(0, tk.END):
                     clean = i.replace("➜", "-")
-                    # Handling Turkish characters for standard PDF fonts
                     cmap = {"ğ":"g","Ğ":"G","ı":"i","İ":"I","ö":"o","Ö":"O","ü":"u","Ü":"U","ş":"s","Ş":"S","ç":"c","Ç":"C"}
                     for k, v in cmap.items(): clean = clean.replace(k, v)
                     pdf.cell(200, 10, txt=clean.encode('latin-1', 'ignore').decode('latin-1'), ln=True)
